@@ -31,10 +31,14 @@ export const telegramNotify: Integration = {
     if (!chatId.ok) return chatId;
 
     const url = `https://api.telegram.org/bot${botToken.value}/sendMessage`;
-    const response = await postJson(url, {
-      chat_id: chatId.value,
-      text: formatTelegramMessage(lead),
-    });
+    // sendMessage не ідемпотентний: повтор після втраченої відповіді надсилає
+    // друге повідомлення. Повторну спробу бере на себе наступний прогін —
+    // runSync не рухає позначку далі невдалого ліда.
+    const response = await postJson(
+      url,
+      { chat_id: chatId.value, text: formatTelegramMessage(lead) },
+      { retries: 0 },
+    );
     if (!response.ok) {
       log.error(`telegram-notify: lead ${lead.id} not delivered: ${response.error}`);
       return response;

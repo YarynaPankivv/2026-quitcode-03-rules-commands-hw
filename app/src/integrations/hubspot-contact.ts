@@ -23,6 +23,9 @@ export const hubspotContact: Integration = {
     if (!accessToken.ok) return accessToken;
 
     // CRM — система обліку, а не канал сповіщень, тому повні дані ліда допустимі.
+    // Створення контакту не ідемпотентне: повтор після втраченої відповіді дає
+    // або дубль, або 409 на вже створений контакт. Повторну спробу бере на себе
+    // наступний прогін — runSync не рухає позначку далі невдалого ліда.
     const response = await postJson(
       CONTACTS_URL,
       {
@@ -34,7 +37,7 @@ export const hubspotContact: Integration = {
           budget_usd: lead.budgetUsd,
         },
       },
-      { headers: { authorization: `Bearer ${accessToken.value}` } },
+      { headers: { authorization: `Bearer ${accessToken.value}` }, retries: 0 },
     );
     if (!response.ok) {
       log.error(`hubspot-contact: lead ${lead.id} not delivered: ${response.error}`);
