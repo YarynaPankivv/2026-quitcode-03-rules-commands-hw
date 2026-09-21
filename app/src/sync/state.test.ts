@@ -48,15 +48,40 @@ describe("loadState", () => {
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.error).toContain("unexpected shape");
   });
+
+  // Рядок проходив би перевірку типу, але лексикографічне порівняння з createdAt
+  // дало б тихо неправильний набір лідів.
+  it.each(["not-a-date", "2026-09-10T08:00:00Z", "2026-09-10 08:00:00.000Z", ""])(
+    "не приймає lastSyncedAt %j",
+    (lastSyncedAt) => {
+      const path = join(dir, "sync-state.json");
+      writeFileSync(path, JSON.stringify({ lastSyncedAt }));
+
+      const result = loadState(path);
+
+      expect(result.ok).toBe(false);
+      expect(result.ok === false && result.error).toContain("unexpected shape");
+    },
+  );
 });
 
 describe("saveState", () => {
   it("зберігає стан і не лишає тимчасового файлу", () => {
     const path = join(dir, "sync-state.json");
 
-    saveState(path, { lastSyncedAt: "2026-09-10T08:00:00.000Z" });
+    const result = saveState(path, { lastSyncedAt: "2026-09-10T08:00:00.000Z" });
 
+    expect(result).toEqual({ ok: true, value: undefined });
     expect(loadState(path)).toEqual({ ok: true, value: { lastSyncedAt: "2026-09-10T08:00:00.000Z" } });
     expect(existsSync(`${path}.tmp`)).toBe(false);
+  });
+
+  it("повертає помилку замість винятку, якщо записати не вдалося", () => {
+    const path = join(dir, "немає-такої-теки", "sync-state.json");
+
+    const result = saveState(path, { lastSyncedAt: "2026-09-10T08:00:00.000Z" });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.error).toContain("sync state");
   });
 });

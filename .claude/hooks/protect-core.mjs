@@ -50,11 +50,26 @@ function protectedZone(filePath) {
   );
 }
 
+// Сегмент команди, який лише читає або відновлює з git, — решта вважається
+// записом. Перелік дозволеного, а не забороненого: `printf x > file`,
+// `sed -i`, `rm`, `tee`, `dd` і десяток інших способів записати файл
+// перелічити наперед неможливо, а пропустити хоч один — зняти захист.
+const READ_ONLY_SEGMENT =
+  /^\s*(git\s+(status|diff|log|show|blame|ls-files|checkout\s+--|restore)|cat|head|tail|less|grep|rg|ls|wc|find|diff|node\s+--version)\b/;
+
+function protectedZoneInCommand(command) {
+  for (const segment of command.replace(/\\/g, "/").split(/&&|\|\||[;|\n]/)) {
+    const zone =
+      PROTECTED_DIRS.find((dir) => segment.includes(dir)) ??
+      PROTECTED_FILES.find((file) => segment.includes(file));
+    if (zone !== undefined && !READ_ONLY_SEGMENT.test(segment)) return zone;
+  }
+  return undefined;
+}
+
 if (input?.tool_name === "Bash") {
-  // Повний розбір команд оболонки тут не робимо — надто легко хибно заблокувати
-  // легітимне (напр. `git checkout -- app/src/core`, яке саме правило й радить).
-  // Закриваємо єдиний конкретний випадок, названий у do-not-touch.md.
   const command = String(input?.tool_input?.command ?? "");
+
   if (command.includes("--write-lock")) {
     block(
       "перегенерація app/scripts/core.lock.json заборонена.\n" +
@@ -62,6 +77,16 @@ if (input?.tool_name === "Bash") {
         "(`git checkout -- app/src/core`), а не переписуй лок.",
     );
   }
+
+  const zone = protectedZoneInCommand(command);
+  if (zone !== undefined) {
+    block(
+      `команда звертається до захищеної зони «${zone}» не лише для читання.\n` +
+        "Див. .claude/rules/do-not-touch.md — ці шляхи не редагуються, зокрема й через оболонку.\n" +
+        "Читання (`cat`, `grep`, `git diff`) і відновлення (`git checkout -- <шлях>`) дозволені.",
+    );
+  }
+
   process.exit(0);
 }
 

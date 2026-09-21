@@ -36,7 +36,13 @@ export async function runSync(
     (latest, lead) => (lead.createdAt > latest ? lead.createdAt : latest),
     state.value.lastSyncedAt,
   );
-  saveState(statePath, { lastSyncedAt: newest });
+  const saved = saveState(statePath, { lastSyncedAt: newest });
+  if (!saved.ok) {
+    // Позначка не зрушила: наступний прогін повторить уже доставлені ліди.
+    // Єдине, що тут можна зробити, — не дати цьому статися тихо.
+    log.error(`sync: ${saved.error}; позначку не збережено, наступний прогін повторить ці ліди`);
+  }
+
   log.info(`sync: ${pending.length} pending leads, ${delivered} delivered, ${failed} failed`);
   return { pending: pending.length, delivered, failed };
 }

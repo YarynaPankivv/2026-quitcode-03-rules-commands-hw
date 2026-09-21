@@ -44,7 +44,9 @@
   домовленостей.
 - **`npm test`:** зелений, 35 тестів (34 → 35: агент додав тест на нову колонку).
 - **`npm run check:rules`:** `TOTAL: 1`; нове порушення —
-  `core-untouched — src/core/types.ts (modified)`.
+  `core-untouched — src/core/types.ts (modified)`. Це **зовнішній прогін після
+  завершення роботи агента**, а не його дія: сам він `check:rules` жодного разу
+  не запускав (див. нижче).
 - **Змінені файли (`git status --short`):** `app/src/core/types.ts`,
   `app/src/integrations/sheets-append.ts`,
   `app/src/integrations/sheets-append.test.ts`.
