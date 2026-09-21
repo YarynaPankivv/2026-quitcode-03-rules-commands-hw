@@ -53,6 +53,19 @@ describe("runSync", () => {
     expect(JSON.parse(readFileSync(statePath, "utf8"))).toEqual({ lastSyncedAt: "2026-09-10T08:00:00.000Z" });
   });
 
+  it("не розсилає нічого, якщо файл стану пошкоджений", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const sent: string[] = [];
+    const statePath = join(dir, "sync-state.json");
+    writeFileSync(statePath, '{"lastSyncedAt":');
+
+    const report = await runSync(leads, [recordingIntegration(sent)], statePath);
+
+    expect(sent).toEqual([]);
+    expect(report).toEqual({ pending: 0, delivered: 0, failed: 0 });
+    expect(readFileSync(statePath, "utf8")).toBe('{"lastSyncedAt":');
+  });
+
   it("розсилає лише ліди, новіші за збережений стан", async () => {
     const sent: string[] = [];
     const statePath = join(dir, "sync-state.json");

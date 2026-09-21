@@ -15,9 +15,12 @@ export async function runSync(
   statePath: string,
 ): Promise<SyncReport> {
   const state = loadState(statePath);
-  saveState(statePath, state); // створює файл стану при першому запуску
+  if (!state.ok) {
+    log.error(`sync: ${state.error}; стан не перезаписано, прогін пропущено`);
+    return { pending: 0, delivered: 0, failed: 0 };
+  }
 
-  const pending = leads.filter((lead) => lead.createdAt > state.lastSyncedAt);
+  const pending = leads.filter((lead) => lead.createdAt > state.value.lastSyncedAt);
   let delivered = 0;
   let failed = 0;
 
@@ -31,7 +34,7 @@ export async function runSync(
 
   const newest = pending.reduce(
     (latest, lead) => (lead.createdAt > latest ? lead.createdAt : latest),
-    state.lastSyncedAt,
+    state.value.lastSyncedAt,
   );
   saveState(statePath, { lastSyncedAt: newest });
   log.info(`sync: ${pending.length} pending leads, ${delivered} delivered, ${failed} failed`);
