@@ -1,6 +1,7 @@
 ---
 paths:
   - "app/src/**/*.ts"
+  - "app/package.json"
 ---
 
 # Конвенції коду lead-sync
@@ -9,8 +10,9 @@ paths:
 
 Конвенції з `materials/architecture-brief.md` — не стиль, а механіка: вони дають
 таймаути й повтори в HTTP, маскування секретів у журналі й помітність пошкоджених
-даних. Кожен пункт нижче перевіряє `npm run check:rules`. Спадковий код їм ще не
-відповідає — базова лінія `TOTAL: 8 violation(s)`.
+даних. Кожен пункт нижче перевіряє `npm run check:rules`, і зараз він показує
+`TOTAL: 0 violation(s)` — увесь спадковий код уже приведено до конвенцій. Тому
+будь-яке порушення у звіті внесене твоїми змінами.
 
 ## Правило
 
@@ -53,10 +55,10 @@ paths:
 
 ## Як перевірити
 
-- `cd app && npm run check:rules` → у розділі `by rule` рядки `http-via-core`,
-  `env-via-config`, `json-via-parse`, `log-via-logger`, `no-any`, `no-new-deps`
-  не зросли проти базової лінії (`TOTAL: 8`), а для файлів, які ти правив, — `0`.
+- `cd app && npm run check:rules` → `TOTAL: 0 violation(s)`; будь-який ненульовий
+  рядок у розділі `by rule` вказує на твою зміну.
 - `cd app && npm test` → зелено; `cd app && npm run typecheck` → без помилок.
 - `git diff app/package.json` → секція `dependencies` не з'явилася.
-- У коді сповіщень `grep -n "email\|phone" app/src/integrations/slack-notify.ts`
-  → порожньо.
+- У каналах сповіщень немає особистих даних:
+  `grep -n "lead.email\|lead.phone" app/src/integrations/slack-notify.ts app/src/integrations/telegram-notify.ts`
+  → порожньо. Для систем обліку (таблиця, CRM) повні дані навпаки очікувані.

@@ -17,8 +17,8 @@
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run check:rules` | статична перевірка конвенцій проєкту |
 
-Базова лінія на чистому репо: **18 тестів зелені**, `check:rules` →
-`TOTAL: 8 violation(s)` (спадковий код у `sheets-append.ts` і `sync/state.ts`).
+Поточний стан: **34 тести зелені**, `check:rules` → **`TOTAL: 0 violation(s)`**.
+Будь-яке ненульове число — регресія від твоїх змін, а не спадщина.
 
 ## Карта проєкту
 
@@ -39,19 +39,18 @@ app/src/
   `.coderabbit.yaml`, `.github/**` — не редагувати. Задача впирається в ядро →
   зупинитись і описати потрібну зміну. Деталі: `.claude/rules/do-not-touch.md`.
 - Помилки — значення: `Result<T>` з `core/types.ts`, а не винятки назовні модуля.
-- Вихідний HTTP — лише `postJson()` з `core/http.ts`; прямого `fetch` немає.
-- Змінні середовища — лише `readEnv()` з `core/config.ts`; `process.env` поза ядром
-  не читаємо, секрети не логуємо.
-- Зовнішній JSON — лише `parseJson(text, guard)` з `core/parse.ts`; журнал — лише
-  `log` з `core/log.ts`; без `any`; без нових залежностей.
-- У сповіщення (Slack, месенджери) не передаємо email і телефон ліда — лише ім'я,
-  джерело й бюджет.
+- Виклики назовні — лише через ядро: `postJson()`, `readEnv()`,
+  `parseJson(text, guard)`, `log`. Прямих `fetch`, `process.env`, `JSON.parse`,
+  `console.*` поза `core/` немає.
+- Без `any`, без нових залежностей, без секретів у журналі й у коді.
+- Мінімізація даних: канали сповіщень отримують ім'я, джерело й бюджет; повні дані
+  йдуть лише в системи обліку.
 
 Повні формулювання з перевірками — у `.claude/rules/`:
 [`architecture.md`](.claude/rules/architecture.md) (шари, публічний API ядра),
-[`conventions.md`](.claude/rules/conventions.md) (конвенції коду й тестів),
+[`conventions.md`](.claude/rules/conventions.md) (код і тести),
 [`do-not-touch.md`](.claude/rules/do-not-touch.md) (захищені шляхи).
-Тут — короткий перелік, не їх копія.
+Тут — короткий перелік, не копія.
 
 ## Перед комітом
 
