@@ -36,6 +36,18 @@ describe("sheets-append", () => {
     });
   });
 
+  // Append не ідемпотентний: повтор після втраченої відповіді дав би дубль рядка.
+  it("не повторює запит після збою — одна спроба", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchMock = vi.fn(async () => new Response("upstream down", { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await sheetsAppend.send(lead);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.ok).toBe(false);
+  });
+
   it("повертає помилку, якщо таблиця відповіла не ok", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response('{"status":"quota_exceeded"}', { status: 200 })));
 

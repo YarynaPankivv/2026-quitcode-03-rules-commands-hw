@@ -24,9 +24,16 @@ const sheetsAppend: Integration = {
     if (!token.ok) return token;
 
     const url = webhookUrl.value + "?token=" + token.value;
-    const response = await postJson(url, {
-      values: [[lead.createdAt, lead.name, lead.email, lead.phone ?? "", lead.source]],
-    });
+    // Append не ідемпотентний і дедуплікації в таблиці немає: якщо рядок уже
+    // додано, а відповідь загубилась, повтор створить дубль. Саме дублі в
+    // таблиці були скаргою клієнта в інциденті 10.09.2026, тому тут одна спроба.
+    // Канали сповіщень (slack-notify, telegram-notify) лишаються з типовими
+    // повторами: дубль повідомлення дешевший за втрачене.
+    const response = await postJson(
+      url,
+      { values: [[lead.createdAt, lead.name, lead.email, lead.phone ?? "", lead.source]] },
+      { retries: 0 },
+    );
     if (!response.ok) {
       log.error(`sheets-append: lead ${lead.id} not delivered: ${response.error}`);
       return response;
