@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { isRecord, parseJson } from "../core/parse.js";
 import type { Lead } from "../core/types.js";
 import { hubspotContact } from "./hubspot-contact.js";
+
+function requestBody(init: RequestInit | undefined): Record<string, unknown> {
+  const parsed = parseJson(String(init?.body), isRecord, "тіло запиту");
+  if (!parsed.ok) throw new Error(parsed.error);
+  return parsed.value;
+}
 
 const lead: Lead = {
   id: "ld_0011",
@@ -37,7 +44,7 @@ describe("hubspot-contact", () => {
 
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe("https://api.hubapi.com/crm/v3/objects/contacts");
-    expect(JSON.parse(String(init?.body))).toEqual({
+    expect(requestBody(init)).toEqual({
       properties: {
         email: "mariia@studio-nova.example.test",
         firstname: "Марія Тестова",

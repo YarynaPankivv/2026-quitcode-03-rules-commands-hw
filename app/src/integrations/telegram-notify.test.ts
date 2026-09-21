@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { isRecord, parseJson } from "../core/parse.js";
 import type { Lead } from "../core/types.js";
 import { telegramNotify } from "./telegram-notify.js";
+
+function requestBody(init: RequestInit | undefined): Record<string, unknown> {
+  const parsed = parseJson(String(init?.body), isRecord, "тіло запиту");
+  if (!parsed.ok) throw new Error(parsed.error);
+  return parsed.value;
+}
 
 const lead: Lead = {
   id: "ld_0007",
@@ -36,7 +43,7 @@ describe("telegram-notify", () => {
 
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`);
-    expect(JSON.parse(String(init?.body))).toEqual({
+    expect(requestBody(init)).toEqual({
       chat_id: "-1000000000001",
       text: "Новий лід: Олена Тестова · referral · бюджет $2500",
     });
