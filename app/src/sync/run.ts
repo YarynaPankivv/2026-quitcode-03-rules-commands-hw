@@ -26,13 +26,13 @@ export async function runSync(
 
   let delivered = 0;
   let failed = 0;
-  let syncedUpTo = state.value.lastSyncedAt;
+  const deliveredAt: string[] = [];
+  let failedAt: string | undefined;
 
-  // Ліди йдуть за часом створення, і прогін спиняється на першій невдачі.
-  // Позначка лишається на останньому повністю доставленому ліді, тож наступний
-  // прогін почне саме з проблемного: раніше він рухався вперед попри помилки,
-  // і недоставлений лід лічився синхронізованим назавжди. Зупинка замість
-  // «пропустити й піти далі» ще й не дає повторно розіслати те, що вже дійшло.
+  // Ліди йдуть за часом створення, і прогін спиняється на першій невдачі:
+  // раніше позначка рухалася вперед попри помилки, і недоставлений лід лічився
+  // синхронізованим назавжди. Зупинка замість «пропустити й піти далі» ще й не
+  // дає повторно розіслати те, що вже дійшло.
   for (const lead of pending) {
     let leadDelivered = true;
     for (const integration of integrations) {
@@ -43,9 +43,20 @@ export async function runSync(
         leadDelivered = false;
       }
     }
-    if (!leadDelivered) break;
-    syncedUpTo = lead.createdAt;
+    if (!leadDelivered) {
+      failedAt = lead.createdAt;
+      break;
+    }
+    deliveredAt.push(lead.createdAt);
   }
+
+  // Позначка не доходить до часу невдалого ліда, навіть якщо інший лід із
+  // тим самим createdAt доставлено: порівняння в фільтрі строге (`>`), тож
+  // рівна позначка назавжди приховала б недоставлений лід.
+  const limit = failedAt;
+  const syncedUpTo = deliveredAt
+    .filter((at) => limit === undefined || at < limit)
+    .reduce((latest, at) => (at > latest ? at : latest), state.value.lastSyncedAt);
 
   const saved = saveState(statePath, { lastSyncedAt: syncedUpTo });
   if (!saved.ok) {

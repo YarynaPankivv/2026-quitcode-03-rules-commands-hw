@@ -76,6 +76,28 @@ describe("runSync", () => {
     expect(loadState(statePath)).toEqual({ ok: true, value: { lastSyncedAt: "2026-09-09T10:00:00.000Z" } });
   });
 
+  // Рівна позначка приховала б невдалий лід назавжди: фільтр pending строгий (`>`).
+  it("не пересуває позначку на час, який ділить із недоставленим лідом", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const sent: string[] = [];
+    const statePath = join(dir, "sync-state.json");
+    const sameMoment = [makeLead("ld_0010", "2026-09-09T12:00:00.000Z"), makeLead("ld_0011", "2026-09-09T12:00:00.000Z")];
+    const failingOnSecond: Integration = {
+      name: "failing",
+      requiredEnv: [],
+      send: async (lead) => {
+        if (lead.id === "ld_0011") return { ok: false, error: "зовнішня система недоступна" };
+        sent.push(lead.id);
+        return { ok: true, value: undefined };
+      },
+    };
+
+    await runSync(sameMoment, [failingOnSecond], statePath);
+
+    expect(sent).toEqual(["ld_0010"]);
+    expect(loadState(statePath)).toEqual({ ok: true, value: { lastSyncedAt: "1970-01-01T00:00:00.000Z" } });
+  });
+
   it("не розсилає нічого, якщо файл стану пошкоджений", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const sent: string[] = [];

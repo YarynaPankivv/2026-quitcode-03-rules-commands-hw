@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { log } from "../core/log.js";
 import type { Lead } from "../core/types.js";
 import sheetsAppend from "./sheets-append.js";
 
@@ -38,7 +39,7 @@ describe("sheets-append", () => {
 
   // Append не ідемпотентний: повтор після втраченої відповіді дав би дубль рядка.
   it("не повторює запит після збою — одна спроба", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(log, "error").mockImplementation(() => {});
     const fetchMock = vi.fn(async () => new Response("upstream down", { status: 503 }));
     vi.stubGlobal("fetch", fetchMock);
 

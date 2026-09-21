@@ -14,10 +14,13 @@ const INITIAL_STATE: SyncState = { lastSyncedAt: "1970-01-01T00:00:00.000Z" };
 // runSync порівнює lastSyncedAt із lead.createdAt лексикографічно, тому підходить
 // лише канонічний UTC-запис ISO-8601 з мілісекундами. Будь-який інший рядок дав би
 // тихо неправильний набір лідів замість помилки.
+// Round-trip, а не Date.parse: parse нормалізує неможливі дати, тож
+// "2026-02-30T00:00:00.000Z" пройшов би і зсунув курсор на 2 березня,
+// пропустивши справжні лютневі ліди.
 const isIsoUtcTimestamp = (value: unknown): value is string =>
   isString(value) &&
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) &&
-  !Number.isNaN(Date.parse(value));
+  new Date(value).toISOString() === value;
 
 const isSyncState: Guard<SyncState> = (value): value is SyncState =>
   isRecord(value) && isIsoUtcTimestamp(value.lastSyncedAt);
@@ -51,19 +54,15 @@ function fsyncFile(target: string): void {
 }
 
 // Каталог теж треба скинути на диск, інакше саме перейменування може не пережити
-// аварійного вимкнення. Операція непортабельна: Windows на ній дає EPERM, тому
-// це best-effort — невдача тут не робить збереження стану невдалим.
+// аварійного вимкнення. На Windows каталог так відкрити не можна й fsync на ньому
+// дає EPERM — там це свідомий no-op. На POSIX помилка тут справжня (напр. EIO):
+// проковтнути її означало б звітувати про збережений курсор, якого на диску немає.
 function fsyncDirectory(dir: string): void {
-  let fd: number;
-  try {
-    fd = openSync(dir, "r");
-  } catch {
-    return;
-  }
+  if (process.platform === "win32") return;
+
+  const fd = openSync(dir, "r");
   try {
     fsyncSync(fd);
-  } catch {
-    // Платформа не вміє — покладаємось на гарантії самої файлової системи.
   } finally {
     closeSync(fd);
   }

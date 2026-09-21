@@ -57,12 +57,32 @@ function protectedZone(filePath) {
 const READ_ONLY_SEGMENT =
   /^\s*(git\s+(status|diff|log|show|blame|ls-files|checkout\s+--|restore)|cat|head|tail|less|grep|rg|ls|wc|find|diff|node\s+--version)\b/;
 
+// Перенаправлення чи підстановка роблять сегмент записом незалежно від того,
+// з якої команди він починається: `git diff X > Y` читає лише на вигляд.
+const WRITES_ANYWAY = /[><`]|\$\(/;
+
+// Один сегмент — одна команда. Ділимо і по одинарному `&`: `git diff X & printf y > Z`
+// інакше лишився б одним сегментом із дозволеним початком.
+const SEGMENT_SEPARATOR = /&&|\|\||[;|&\n]/;
+
+/** Токен сегмента може бути шляхом: знімаємо лапки й відкидаємо прапорці. */
+function pathCandidates(segment) {
+  return segment
+    .split(/\s+/)
+    .map((token) => token.replace(/^["']|["']$/g, ""))
+    .filter((token) => token !== "" && !token.startsWith("-"));
+}
+
 function protectedZoneInCommand(command) {
-  for (const segment of command.replace(/\\/g, "/").split(/&&|\|\||[;|\n]/)) {
-    const zone =
-      PROTECTED_DIRS.find((dir) => segment.includes(dir)) ??
-      PROTECTED_FILES.find((file) => segment.includes(file));
-    if (zone !== undefined && !READ_ONLY_SEGMENT.test(segment)) return zone;
+  for (const segment of command.split(SEGMENT_SEPARATOR)) {
+    // Шлях нормалізується так само, як для Edit/Write, тому повз захист не
+    // проходять ні `app/src/../src/core/x.ts`, ні `./app/src/core/x.ts`.
+    const zone = pathCandidates(segment)
+      .map((token) => protectedZone(token))
+      .find((found) => found !== undefined);
+    if (zone === undefined) continue;
+    if (READ_ONLY_SEGMENT.test(segment) && !WRITES_ANYWAY.test(segment)) continue;
+    return zone;
   }
   return undefined;
 }
